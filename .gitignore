@@ -1,0 +1,71 @@
+# ==============================================================
+# DADOS — originais brutos nunca são versionados
+# (samples/ é versionada: contém só imagens próprias, sem EXIF)
+# ==============================================================
+data/
+images/
+*.zip
+
+# ==============================================================
+# MODELOS — pesos são baixados do Hugging Face, nunca versionados
+# ==============================================================
+models/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.ckpt
+
+# ==============================================================
+# SEGREDOS — .env nunca sobe; .env.example (sem valores) sobe
+# ==============================================================
+.env
+.env.*
+!.env.example
+
+# ==============================================================
+# AMBIENTE PYTHON (venv criado pelo uv)
+# ==============================================================
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# ==============================================================
+# TESTES E FERRAMENTAS
+# ==============================================================
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ==============================================================
+# BENTOML — artefatos de build locais
+# ==============================================================
+bentoml_home/
+*.bento
+
+# ==============================================================
+# EDITOR E SISTEMA OPERACIONAL
+# ==============================================================
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ==============================================================
+# MONITORAMENTO — logs são gerados em tempo de execução, nunca versionados
+# (data/ já está ignorada acima: imagens geradas pelo script de carga ficam em data/generated/)
+# ==============================================================
+logs/
+*.log
+*.log.*
+
+# ==============================================================
+# JUPYTER
+# ==============================================================
+.ipynb_checkpoints/
