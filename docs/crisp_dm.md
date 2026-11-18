@@ -135,7 +135,7 @@ Esta entrega só **grava** os dados; as análises abaixo definem o que o log pre
 | Análise | Variáveis | Uso |
 |---|---|---|
 | Histograma e boxplot | Todas as numéricas de entrada e saída | Forma da distribuição, assimetria e outliers |
-| KS | Numéricas contínuas (mean_*, std_L, sharpness, colorfulness, aspect_ratio, top1_score, margin, entropy, latências) | Distância entre a carga avaliada e a referência, com p-valor |
+| KS | Numéricas contínuas de dados (mean_*, std_L, sharpness, colorfulness, aspect_ratio, top1_score, margin, entropy) | Distância entre a carga avaliada e a referência, com p-valor. Latências ficam de fora: dependem do estado da máquina (ver notebook) e são monitoradas por limites e pelo `/metrics` |
 | PSI | Numéricas (em faixas definidas pela referência) e categóricas (img_format, img_mode, top1_label agrupada) | Estabilidade da distribuição, com limiares da indústria (0,1 e 0,25) |
 | Taxa de erro | status, http_status, error_type | Saúde operacional por período |
 

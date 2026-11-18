@@ -411,34 +411,55 @@ no cache do `uv` (`uv cache dir`). Apagar a pasta do projeto não remove esses c
 
 ## 12. Uso de IA
 
-**Ferramenta:** Claude (Anthropic), modelo Claude Opus 5.5, via claude.ai.
+**Ferramenta:** Claude (Anthropic), modelo Claude Opus 5.5, acessado por meio da plataforma claude.ai, em um projeto configurado com instruções específicas de orientação técnica e apoio didático.
 
-**O que foi pedido:** orientação técnica e didática, etapa por etapa: análise CRISP-DM; escolha das
-variáveis e do formato do log; código do módulo de características, do logger, do middleware, dos
-testes, do gerador de carga e do notebook; a planilha e o guia do `/metrics`; e o rascunho deste README.
+**O que foi solicitado:** orientação estruturada para evolução de um serviço base para um serviço monitorado, incluindo análise baseada em CRISP-DM, definição das variáveis e do formato de registro dos logs, implementação do módulo de características, do sistema de logging com rotação, do middleware, dos testes automatizados, do gerador de carga e do notebook de validação; elaboração do guia e da planilha de análise do endpoint `/metrics`; além da produção de uma versão inicial deste README.
 
 **Avaliação crítica:**
 
-*Onde ajudou.* [Completar com a sua avaliação. Fatos desta etapa que podem servir de base: a ferramenta
-testou as soluções num ambiente próprio antes de propô-las (com o BentoML 1.4.39 e um modelo falso) e
-encontrou ali problemas que não eram óbvios — o import do serviço em dois processos, a duplicação de
-métricas com dois `TestClient`, a telemetria do BentoML conectando a `t.bentoml.com`; também indicou o
-risco da rotação no Windows antes de ele acontecer.]
+*Onde auxiliou.*
 
-*Onde errou ou precisou de correção.* [Completar. Fatos: ao recriar o `.venv`, a instrução não previu
-que o kernel do notebook mantinha arquivos abertos; o `Remove-Item` apagou a pasta pela metade e foi
-preciso diagnosticar pela mensagem de erro e encerrar os processos do `.venv`. As previsões de
-resultado do modelo real (confiança e entropia com drift) eram incertas e só foram confirmadas ao
-executar.]
+A principal contribuição ocorreu na identificação antecipada de problemas que poderiam surgir apenas durante a execução local do projeto. As soluções propostas foram previamente avaliadas em um ambiente de testes próprio, utilizando BentoML 1.4.39 e um modelo simulado, permitindo a identificação de comportamentos que dificilmente seriam previstos sem experimentação.
 
-*O que verifiquei por conta própria.* [Completar. Ex.: cada bloco foi executado e a saída conferida;
-a carga reproduziu as mesmas contagens em duas máquinas; os 34 testes passaram no Windows, incluindo
-a rotação com o arquivo aberto; a retenção do `/metrics` foi comprovada reiniciando o servidor.]
+Entre os pontos identificados destacam-se: a importação do arquivo `service.py` em dois processos distintos durante a execução do `bentoml serve`, fator determinante para a definição da configuração de logging; o fato de erros de validação `400` não alcançarem o método `classify`, tornando necessária a implementação de um middleware; a duplicação das métricas do Prometheus quando o serviço é iniciado mais de uma vez dentro do mesmo processo de testes; e o envio padrão de telemetria para `t.bentoml.com`.
 
-*O que aprendi.* [Completar.]
+Também foi identificado antecipadamente o risco associado à rotação de arquivos de log em ambientes Windows quando o arquivo está aberto por outro processo, sendo sugerida posteriormente uma validação automatizada especificamente para esse cenário.
 
-> Este texto foi rascunhado pela própria ferramenta a partir do histórico da conversa e revisado e
-> editado por mim.
+Para a análise da retenção das métricas expostas em `/metrics`, a ferramenta consultou o código-fonte do BentoML em vez de assumir um comportamento padrão, propondo posteriormente uma demonstração prática por meio da reinicialização do servidor e observação da reinicialização dos contadores.
+
+*Onde apresentou limitações ou exigiu correções.*
+
+- Ao sugerir a recriação do ambiente `.venv`, não foi considerado que o kernel do notebook permanecia em execução. Como consequência, o comando `Remove-Item` removeu parcialmente o ambiente virtual, resultando no erro `No pyvenv.cfg file`. A causa foi identificada posteriormente por meio da análise da mensagem de erro e do encerramento manual dos processos associados ao ambiente virtual (problema 15 documentado em `docs/problemas_e_ajustes.md`).
+
+- A primeira versão do README propunha apenas contornar um problema existente. O comando `just tail-log` falhava antes da realização da primeira requisição, e a documentação apenas alertava sobre essa condição. O problema foi identificado durante testes em um clone limpo do repositório, levando posteriormente à correção adequada por meio da criação automática do arquivo durante a inicialização do serviço, acompanhada de testes específicos.
+
+- A proposta inicial da análise CRISP-DM incluía o uso dos indicadores KS e PSI para monitoramento de latência. A avaliação experimental demonstrou que essas métricas indicavam alterações significativas mesmo entre cenários equivalentes, em função da dependência do estado da máquina. A conclusão foi revisada no notebook, passando a considerar limites absolutos e métricas disponibilizadas pelo endpoint `/metrics` como mecanismos mais adequados para monitoramento de latência.
+
+- Em algumas etapas, as instruções fornecidas não incluíam critérios claros de validação. Nesses casos, foi necessário solicitar orientações adicionais para determinar como verificar corretamente o funcionamento das implementações realizadas.
+
+*Onde houve direcionamento do aluno.*
+
+Foi solicitada a inclusão de uma seção específica descrevendo as fases do método CRISP-DM. Também foi requerida uma avaliação sobre o reaproveitamento de um repositório previamente desenvolvido, resultando na decisão de manter o serviço atual e reutilizar apenas as funções relacionadas à extração de características.
+
+Além disso, considerando a relação entre esforço necessário e pontuação atribuída, optou-se por não realizar as atividades opcionais.
+
+*O que foi verificado de forma independente.*
+
+Cada bloco de código foi executado individualmente, com validação das saídas produzidas antes do prosseguimento para as etapas seguintes.
+
+A geração de carga utilizando semente fixa produziu resultados consistentes em três execuções independentes, incluindo um teste realizado em clone limpo do repositório, com caches vazios e sem Python 3.11 previamente instalado, por meio da execução de `just all`, concluída em aproximadamente três minutos.
+
+Os testes automatizados foram executados com sucesso em ambiente Windows, incluindo o cenário específico de rotação de logs com o arquivo aberto por um programa externo.
+
+A persistência das métricas expostas em `/metrics` foi avaliada por meio da reinicialização do serviço, confirmando a reinicialização dos contadores. Adicionalmente, os experimentos conduzidos no notebook demonstraram que as variáveis selecionadas são capazes de detectar situações de *drift* sem gerar alarmes indevidos.
+
+*Aprendizados obtidos.*
+
+A atividade evidenciou que o monitoramento de modelos vai além da medição de latência, exigindo a definição criteriosa das informações a serem registradas em cada requisição e a validação experimental de que tais variáveis são capazes de detectar mudanças relevantes no comportamento do sistema.
+
+Também foi possível compreender, de forma prática, a diferença entre o registro detalhado em arquivos de log e a exposição de métricas por meio do endpoint `/metrics`. Enquanto o primeiro mantém registros individuais persistentes entre reinicializações, o segundo fornece agregações padronizadas e de baixo custo computacional, porém reiniciadas a cada novo ciclo do serviço.
+
+Por fim, a atividade reforçou a importância de validar comportamentos específicos do sistema operacional em vez de assumi-los como corretos, especialmente em cenários que envolvem manipulação de arquivos, bloqueios de acesso e compatibilidade entre diferentes ambientes de execução.
 
 ---
 
