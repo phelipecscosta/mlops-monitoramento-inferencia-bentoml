@@ -1060,6 +1060,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bentoml" },
+    { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "torch", version = "2.14.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
@@ -1076,6 +1077,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bentoml", specifier = ">=1.4.39" },
+    { name = "numpy", specifier = ">=2.4.6" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "torch", specifier = ">=2.14.1", index = "https://download.pytorch.org/whl/cpu" },
