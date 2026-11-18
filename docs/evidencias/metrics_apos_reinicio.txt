@@ -1,0 +1,4 @@
+# HELP bentoml_service_request_total Total number of runner RPC
+# TYPE bentoml_service_request_total counter
+bentoml_service_request_total{endpoint="/classify",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+bentoml_service_request_total{endpoint="/classify",http_response_code="500",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0

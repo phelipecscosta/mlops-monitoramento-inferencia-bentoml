@@ -1,0 +1,69 @@
+# HELP bentoml_service_request_total Total number of runner RPC
+# TYPE bentoml_service_request_total counter
+bentoml_service_request_total{endpoint="/classify",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_total{endpoint="/classify",http_response_code="500",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+bentoml_service_request_total{endpoint="/readyz",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_total{endpoint="/classify",http_response_code="400",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+# HELP bentoml_service_last_request_timestamp_seconds Timestamp of the last received request
+# TYPE bentoml_service_last_request_timestamp_seconds gauge
+bentoml_service_last_request_timestamp_seconds{pid="2044",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.7949710160621183e+09
+# HELP bentoml_service_request_in_progress Total number of runner RPC in progress now
+# TYPE bentoml_service_request_in_progress gauge
+bentoml_service_request_in_progress{endpoint="/readyz",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+bentoml_service_request_in_progress{endpoint="/classify",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+# HELP bentoml_service_request_duration_seconds runner RPC duration in seconds
+# TYPE bentoml_service_request_duration_seconds histogram
+bentoml_service_request_duration_seconds_sum{endpoint="/readyz",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.004276899999240413
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.005",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.01",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.025",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.05",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.1",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.25",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="0.5",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="1.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="2.5",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="5.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="10.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="30.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="60.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="120.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="180.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/readyz",http_response_code="200",le="+Inf",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_count{endpoint="/readyz",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 1.0
+bentoml_service_request_duration_seconds_sum{endpoint="/classify",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 155.96871789999568
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.005",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.01",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.025",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.05",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 2.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.1",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 20.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.25",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 850.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="0.5",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="1.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="2.5",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="5.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="10.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="30.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="60.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="120.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="180.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="200",le="+Inf",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_count{endpoint="/classify",http_response_code="200",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 873.0
+bentoml_service_request_duration_seconds_sum{endpoint="/classify",http_response_code="400",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 0.0954507000205922
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.005",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 23.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.01",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.025",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.05",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.1",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.25",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="0.5",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="1.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="2.5",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="5.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="10.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="30.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="60.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="120.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="180.0",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_bucket{endpoint="/classify",http_response_code="400",le="+Inf",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
+bentoml_service_request_duration_seconds_count{endpoint="/classify",http_response_code="400",runner_name="ImageClassifier",service_name="ImageClassifier",service_version="not available"} 27.0
