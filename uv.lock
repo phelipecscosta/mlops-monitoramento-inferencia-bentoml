@@ -281,6 +281,18 @@ wheels = [
 ]
 
 [[package]]
+name = "concurrent-log-handler"
+version = "0.9.31"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "portalocker" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/51/e8/1f74620f511493a3e89b5dbfe9fccd55e6fa1de45ecc91bb1d6f5058acb0/concurrent_log_handler-0.9.31.tar.gz", hash = "sha256:2f973d574f083e5692dfef471931f416daf274bbde8b430ed5d9796c532b97cd", size = 47161, upload-time = "2026-10-21T20:09:58.755Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/ea/f5593cecb8c0092ce8b5a28f0837c1b14b66dc463add1da6082031cefa24/concurrent_log_handler-0.9.31-py3-none-any.whl", hash = "sha256:b8c39896862e11bef707051af96bbe381b2e5deec662361076d696b4896dee95", size = 36337, upload-time = "2026-10-21T20:09:57.738Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "4.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -739,6 +751,15 @@ wheels = [
 ]
 
 [[package]]
+name = "portalocker"
+version = "4.4.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/d9/586fb0510fdfbd95a86f9d5c5046463aca41a55f6573d1a5a082a62e0acb/portalocker-4.4.2.tar.gz", hash = "sha256:7ac85bb2aa3c7873bf2ac72586fc6154afa4671ac786994a16617a6b7ccb3e5e", size = 310698, upload-time = "2026-10-28T00:24:58.214Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/43/bca094221a0f9f592fe1e982d090a92075aa302ecaa92c94cc6268a39b2c/portalocker-4.4.2-py3-none-any.whl", hash = "sha256:e661b91af34fc1806740f8e0e42990fe55cd85cbae55675ac48a400a9656a51b", size = 129702, upload-time = "2026-10-28T00:24:56.625Z" },
+]
+
+[[package]]
 name = "prometheus-client"
 version = "0.26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1060,6 +1081,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bentoml" },
+    { name = "concurrent-log-handler" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
@@ -1077,6 +1099,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bentoml", specifier = ">=1.4.39" },
+    { name = "concurrent-log-handler", specifier = ">=0.9.31" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "pydantic", specifier = ">=2.13.5" },

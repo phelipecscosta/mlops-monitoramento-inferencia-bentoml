@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from starlette.testclient import TestClient
 
-from service import MODEL_REVISION, ClassificationResponse, ImageClassifier
+from service import MODEL_REVISION, ClassificationResponse
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 SAMPLES = sorted(
@@ -13,14 +13,7 @@ SAMPLES = sorted(
 )
 URL = "/classify"
 
-
-@pytest.fixture(scope="module")
-def client():
-    # scope="module": o modelo é carregado UMA vez para todos os testes (não um por teste)
-    # to_asgi(): o serviço roda em memória, sem servidor e sem porta
-    with TestClient(ImageClassifier.to_asgi()) as c:
-        yield c
-
+# A fixture "client" (serviço em memória) fica em tests/conftest.py, compartilhada com test_logging.py
 
 def post_image(client: TestClient, path: Path, top_k: int | None = None):
     """Envia uma imagem como multipart, igual ao curl -F."""
