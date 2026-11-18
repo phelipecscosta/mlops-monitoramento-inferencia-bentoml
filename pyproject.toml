@@ -30,7 +30,11 @@ torch = [{ index = "pytorch-cpu" }]
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "pandas>=3.1.1",
     "pytest>=9.1.1",
+    "scipy>=1.17.1",
 ]
 
 
