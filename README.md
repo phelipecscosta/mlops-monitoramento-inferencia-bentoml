@@ -237,6 +237,10 @@ suficiência definidos no CRISP-DM sobre a carga do passo 4:
 | `reference` × `drift` | PSI de 4 a 8 nas entradas de imagem; geometria (não alterada) estável: **sensível e específico** |
 | Efeito do drift no modelo | Mediana da confiança de ~0,8 para 0,25; da entropia de ~0,7 para 4,0 |
 
+Evidências prontas em [`docs/evidencias/`](docs/evidencias/): a figura dos histogramas e boxplots
+(`histogramas_boxplots.png`), o log crescendo ao vivo (`tail_log.png`) e uma amostra real de 20 linhas do
+log (`inference_amostra.jsonl`: 5 sucessos de cada cenário e 5 erros).
+
 Achado: `latency_ms` acusa diferença até entre cenários equivalentes, porque depende do estado da máquina
 (aquecimento, carga concorrente). Latência se monitora por limites absolutos e pelo `/metrics`, não por
 drift contra uma referência.
