@@ -39,6 +39,9 @@ def setup_inference_logger(
         backup_count if backup_count is not None else int(os.getenv("INFERENCE_LOG_BACKUP_COUNT", DEFAULT_BACKUP_COUNT))
     )
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Cria o arquivo vazio já na subida (se não existir), para que "just tail-log" funcione antes do
+    # primeiro pedido. touch() num arquivo existente só atualiza a data: nada é reescrito (append-only).
+    path.touch(exist_ok=True)
 
     logger = logging.getLogger(LOGGER_NAME)
     for old in list(logger.handlers):  # reconfiguração (ex.: testes): fecha o arquivo anterior

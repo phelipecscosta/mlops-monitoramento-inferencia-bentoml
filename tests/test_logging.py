@@ -113,3 +113,10 @@ def test_rotacao_com_arquivo_aberto_por_leitor(tmp_path, restore_logger):
         logger.info("e", extra={"event": {"i": i, "pad": "x" * 50}})
     eventos = sorted(e["i"] for f in tmp_path.glob("rot.jsonl*") for e in read_lines(f))
     assert eventos == list(range(-1, 150))
+
+
+def test_arquivo_existe_desde_a_subida(tmp_path, restore_logger):
+    # "just tail-log" precisa do arquivo antes do primeiro pedido
+    path = tmp_path / "novo" / "inference.jsonl"
+    setup_inference_logger(path)
+    assert path.exists() and path.stat().st_size == 0

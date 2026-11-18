@@ -91,7 +91,8 @@ just all            # sem just: uv sync --locked && uv run pytest -v
 ```
 
 Instala o ambiente com **exatamente** as versões do `uv.lock` e roda os 34 testes (serviço em memória,
-predições reais, formato do log, privacidade, append-only e rotação). Esperado ao final: `34 passed`.
+predições reais, formato do log, privacidade, append-only e rotação). Esperado ao final: `35 passed`. Tempo medido num clone limpo, com caches vazios e sem Python 3.11 instalado (download do Python, das
+dependências e do modelo incluídos): **cerca de 3 minutos**. Nas execuções seguintes, segundos.
 Na primeira vez, o modelo (~100 MB) é baixado do Hugging Face.
 
 ### Passo 2 — Subir o serviço (terminal 1)
@@ -109,9 +110,7 @@ O terminal fica ocupado pelo servidor. Para parar: `Ctrl+C`.
 just tail-log       # sem just (Windows): Get-Content logs/inference.jsonl -Wait -Tail 3
                     # sem just (Linux/macOS): tail -n 3 -f logs/inference.jsonl
 ```
-
-Na primeira execução o arquivo ainda não existe. Ele é criado no primeiro pedido; se o comando
-reclamar, rode o passo 4 e repita este.
+O arquivo é criado vazio quando o serviço sobe; o comando fica aguardando as linhas do passo 4.
 
 ### Passo 4 — Gerar carga com um comando (terminal 3)
 
@@ -308,7 +307,7 @@ formato `{"error", "detail"}`, com o campo inválido em `loc`, e também são re
 |---|---|---|
 | `just` | — | Lista as receitas |
 | `just setup` | `uv sync --locked` | Instala o ambiente exato do `uv.lock` |
-| `just all` | `uv sync --locked && uv run pytest -v` | Instala e roda os 34 testes |
+| `just all` | `uv sync --locked && uv run pytest -v` | Instala e roda os 35 testes |
 | `just test` | `uv run pytest -v` | Testes (serviço em memória; não precisa do servidor) |
 | `just serve` | `uv run bentoml serve service:ImageClassifier` | Sobe o serviço em `http://localhost:3000` |
 | `just load` | `uv run python scripts/generate_load.py` | Gera carga nos 3 cenários |
@@ -340,7 +339,7 @@ variável antes de `bentoml serve` — PowerShell: `$env:BENTOML_DO_NOT_TRACK="t
 │   ├── conftest.py               # Um serviço em memória para todos os testes; log em pasta temporária
 │   ├── test_service.py           # Contrato da API e erros (15 testes)
 │   ├── test_features.py          # Testes de sanidade das características (10)
-│   └── test_logging.py           # Formato, privacidade, append-only e rotação do log (9)
+│   └── test_logging.py           # Formato, privacidade, append-only e rotação do log (10)
 ├── notebooks/verificacao_log.ipynb  # Verificação de suficiência: histogramas, boxplots, KS, PSI
 ├── samples/                      # 8 imagens + CREDITS.md
 ├── docs/
@@ -389,7 +388,8 @@ Os problemas reais encontrados no desenvolvimento estão em [`docs/problemas_e_a
 | `curl` no PowerShell dá erro de parâmetro | `curl` é apelido de `Invoke-WebRequest` | Usar **`curl.exe`** |
 | `uv` ou `just` "not recognized" | PATH não atualizado | Fechar e reabrir o terminal / VS Code |
 | `just load` diz "Serviço indisponível" | Servidor não está rodando | `just serve` em outro terminal |
-| `just tail-log` diz que o arquivo não existe | Nenhum pedido feito ainda | Rodar `just load` e repetir |
+| `just tail-log` diz que o arquivo não existe | O serviço não foi iniciado nesta pasta | `just serve` (o arquivo é criado na subida) |
+| Aviso `VIRTUAL_ENV=... does not match the project environment path` | Outro `.venv` está ativado no terminal (o VS Code ativa automaticamente) | Inofensivo: o `uv` ignora o ambiente ativado e usa o `.venv` do projeto; para sumir, `deactivate` |
 | Porta 3000 ocupada | Outro processo usa a porta | `uv run bentoml serve service:ImageClassifier --port 3001` e `just load --url http://localhost:3001` |
 | Mensagem `rename failed. File in use?` | O log estava aberto por outro programa na hora da rotação | Inofensivo: a rotação é adiada e nenhum evento se perde |
 | Não consigo apagar o `.venv` (arquivo em uso) | Um Python do projeto continua rodando (ex.: kernel do notebook) | Fechar o notebook e os terminais; ou encerrar os processos do `.venv` (ver `docs/problemas_e_ajustes.md`) |
