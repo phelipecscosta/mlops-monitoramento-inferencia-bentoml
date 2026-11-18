@@ -1,48 +1,50 @@
-# Serviço de Classificação de Imagens com BentoML
+# Monitoramento de um serviço de inferência (ResNet-50 + BentoML)
 
-Serviço de inferência que recebe uma imagem por HTTP e devolve as classes mais prováveis,
-usando o modelo pré-treinado **ResNet-50** (`microsoft/resnet-50`, ImageNet-1k) servido com **BentoML**.
+Projeto de MLOps (CESAR School, AV2 — Parte 1). O serviço de classificação de imagens
+[servico-classificacao-imagens-bentoml](https://github.com/phelipecscosta/servico-classificacao-imagens-bentoml)
+(commit `8f59d10`, tag `sr1.1`) foi copiado para este repositório e ganhou **monitoramento**:
 
-O foco do projeto é a **camada de serviço**: contrato de API, validação, tratamento de erros,
-reprodutibilidade e testes — não o treinamento do modelo.
+- **Log em arquivo** (`logs/inference.jsonl`): uma linha JSON por pedido, com características
+  numéricas/categóricas da imagem recebida (entrada) e o resultado da inferência (saída). O arquivo
+  é append-only, tem data e hora ISO 8601 com microssegundos e fuso, rotação segura no Windows e
+  nenhum dado pessoal. É suficiente para montar histogramas, boxplots, KS e PSI;
+- **`GET /metrics`** no formato Prometheus, com um guia e uma planilha mostrando como calcular a
+  taxa de erros e o histograma e o boxplot da latência, e por quanto tempo os dados ficam no servidor.
 
-## Versões
-
-| Tag | Data | Situação |
-|---|---|---|
-| `sr1` | 06/10/2026 | Entrega no prazo (congelada) |
-| **`sr1.1`** | 07/10/2026 | **Versão oficial atual** — esta página descreve esta versão |
-
-**O que mudou da `sr1` para a `sr1.1`:**
-
-- **Entrada do endpoint como `Image.Image`** (sugestão do professor), no lugar de `Path`. Com o tipo
-  `Image.Image`, um arquivo que não é imagem voltaria a gerar erro `500`; a decodificação do BentoML
-  passou a ser envolvida por um `WrapValidator` do Pydantic, que converte a falha em erro de validação
-  e mantém a resposta `400` (ver problema nº 10 em [`docs/problemas_e_ajustes.md`](docs/problemas_e_ajustes.md)).
-- **Formato de erro unificado:** todos os erros de entrada agora seguem o mesmo formato
-  (`{"error", "detail"}`, com o campo inválido em `loc`). Na `sr1`, o erro de arquivo inválido usava
-  um formato diferente.
-- **Testes e demonstração mais robustos:** passam a considerar apenas arquivos de imagem da pasta
-  `samples/`, ignorando qualquer outro arquivo deixado ali por engano.
-- **Documentação:** tabela consolidada dos comandos do `justfile` e localização dos caches
-  (modelo e pacotes) com instruções de remoção.
-
-Para obter uma versão específica: `git checkout sr1` ou `git checkout sr1.1`.
+A escolha das variáveis e do formato do log está justificada numa análise CRISP-DM curta:
+[`docs/crisp_dm.md`](docs/crisp_dm.md).
 
 ---
 
 ## Sumário
 
-1. [Requisitos](#1-requisitos)
-2. [Do `git clone` à primeira predição](#2-do-git-clone-à-primeira-predição)
-3. [Contrato da API](#3-contrato-da-api)
-4. [Testes e demonstração](#4-testes-e-demonstração)
-5. [Estrutura do repositório](#5-estrutura-do-repositório)
-6. [O modelo](#6-o-modelo)
-7. [Limitações e propostas de melhoria](#7-limitações-e-propostas-de-melhoria)
-8. [Problemas comuns](#8-problemas-comuns)
-9. [Uso de IA](#9-uso-de-ia)
-10. [Licença](#10-licença)
+- [Monitoramento de um serviço de inferência (ResNet-50 + BentoML)](#monitoramento-de-um-serviço-de-inferência-resnet-50--bentoml)
+  - [Sumário](#sumário)
+  - [1. Requisitos](#1-requisitos)
+  - [2. Do `git clone` ao log crescendo](#2-do-git-clone-ao-log-crescendo)
+    - [Passo 1 — Clonar, instalar e validar (terminal 1)](#passo-1--clonar-instalar-e-validar-terminal-1)
+    - [Passo 2 — Subir o serviço (terminal 1)](#passo-2--subir-o-serviço-terminal-1)
+    - [Passo 3 — Acompanhar o log (terminal 2)](#passo-3--acompanhar-o-log-terminal-2)
+    - [Passo 4 — Gerar carga com um comando (terminal 3)](#passo-4--gerar-carga-com-um-comando-terminal-3)
+    - [Passo 5 — (Opcional) Analisar o log](#passo-5--opcional-analisar-o-log)
+  - [3. O log em arquivo](#3-o-log-em-arquivo)
+    - [Onde fica e como é gravado](#onde-fica-e-como-é-gravado)
+    - [Exemplo de linha (real)](#exemplo-de-linha-real)
+    - [Dicionário de campos](#dicionário-de-campos)
+    - [O que NÃO é gravado](#o-que-não-é-gravado)
+    - [Ler o log em Python](#ler-o-log-em-python)
+  - [4. Verificação dos dados coletados](#4-verificação-dos-dados-coletados)
+  - [5. O `/metrics`](#5-o-metrics)
+  - [6. Contrato da API](#6-contrato-da-api)
+    - [`POST /classify`](#post-classify)
+    - [Rotas automáticas do BentoML](#rotas-automáticas-do-bentoml)
+  - [7. Comandos disponíveis](#7-comandos-disponíveis)
+  - [8. Estrutura do repositório](#8-estrutura-do-repositório)
+  - [9. Decisões de projeto e limitações](#9-decisões-de-projeto-e-limitações)
+  - [10. Problemas comuns](#10-problemas-comuns)
+  - [11. Créditos](#11-créditos)
+  - [12. Uso de IA](#12-uso-de-ia)
+  - [13. Licença](#13-licença)
 
 ---
 
@@ -50,366 +52,397 @@ Para obter uma versão específica: `git checkout sr1` ou `git checkout sr1.1`.
 
 | Ferramenta | Versão testada | Obrigatória? |
 |---|---|---|
-| Python | 3.11.4 e 3.11.17 | Sim — mas **não precisa instalar**: o `uv` baixa um Python 3.11 se a máquina não tiver |
+| Python | 3.11.4 | Sim — mas **não precisa instalar**: o `uv` baixa um Python 3.11 se a máquina não tiver |
 | git | 2.50.1 | Sim |
 | uv | 0.12.23 | Sim |
-| just | 1.58.0 | Não — há comandos equivalentes sem ele |
+| just | 1.58.0 | Não — todos os comandos têm equivalente sem ele (seção 7) |
 
-- **Sistema testado:** Windows 11 (x64). O projeto usa apenas ferramentas multiplataforma (Linux/macOS também suportados).
-- **Hardware:** roda em **CPU**; GPU não é necessária nem utilizada.
+- **Sistema testado:** Windows 11 (x64). Só ferramentas multiplataforma (Linux/macOS também funcionam).
+- **Hardware:** roda em **CPU**; GPU não é necessária nem usada (escolha intencional, para reproduzir em qualquer máquina).
 - **Internet:** necessária na primeira execução (dependências ~300 MB e modelo ~100 MB).
-
-### Instalar o uv
 
 ```powershell
 # Windows (PowerShell)
 winget install --id=astral-sh.uv -e
+winget install --id=Casey.Just -e      # opcional
 ```
 
 ```bash
 # Linux / macOS
 curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-### Instalar o just (opcional)
-
-```powershell
-# Windows (PowerShell)
-winget install --id=Casey.Just -e
-```
-
-```bash
-# Qualquer sistema, via uv (sem permissão de administrador)
-uv tool install rust-just
+uv tool install rust-just               # opcional
 ```
 
 > Após instalar, **feche e reabra o terminal** (ou o VS Code) para que o PATH seja atualizado.
 
 ---
 
-## 2. Do `git clone` à primeira predição
+## 2. Do `git clone` ao log crescendo
 
-**Tempo aproximado:** até ~10 minutos na primeira execução — medido num clone limpo, com caches vazios
-e sem Python instalado, incluindo o download do Python 3.11, das dependências (~300 MB) e do modelo
-(~100 MB). Nas execuções seguintes, segundos.
+São necessários **três terminais**: um para o serviço, um para acompanhar o log e um para gerar carga.
+No VS Code, cada terminal novo é aberto com o botão `+` do painel *Terminal*.
 
-### Passo 1 — Clonar e instalar o ambiente
-
-```bash
-git clone https://github.com/phelipecscosta/servico-classificacao-imagens-bentoml.git
-cd servico-classificacao-imagens-bentoml
-just setup          # sem just: uv sync --locked
-```
-
-O `uv sync --locked` cria o ambiente virtual `.venv` com **exatamente** as versões do `uv.lock`
-(e falha com erro claro se o lock estiver inconsistente, em vez de instalar versões diferentes).
-
-### Passo 2 — (Opcional) Validar tudo com um único comando
+### Passo 1 — Clonar, instalar e validar (terminal 1)
 
 ```bash
+git clone https://github.com/phelipecscosta/mlops-monitoramento-inferencia-bentoml.git
+cd mlops-monitoramento-inferencia-bentoml
 just all            # sem just: uv sync --locked && uv run pytest -v
 ```
 
-Instala o ambiente e executa 12 testes que sobem o serviço **em memória** e fazem predições reais.
-Esperado ao final: `12 passed`. Na primeira execução, o modelo (~100 MB) é baixado do Hugging Face.
+Instala o ambiente com **exatamente** as versões do `uv.lock` e roda os 34 testes (serviço em memória,
+predições reais, formato do log, privacidade, append-only e rotação). Esperado ao final: `34 passed`.
+Na primeira vez, o modelo (~100 MB) é baixado do Hugging Face.
 
-### Passo 3 — Subir o serviço
+### Passo 2 — Subir o serviço (terminal 1)
 
 ```bash
 just serve          # sem just: uv run bentoml serve service:ImageClassifier
 ```
 
-Aguarde a linha `Service ImageClassifier initialized` (~10 a 20 s). O terminal fica ocupado pelo
-servidor — **abra um segundo terminal** para os próximos passos. Para parar: `Ctrl+C`.
+Aguarde a linha `Starting production HTTP BentoServer ... listening on http://localhost:3000`.
+O terminal fica ocupado pelo servidor. Para parar: `Ctrl+C`.
 
-### Passo 4 — Primeira predição
-
-No **segundo terminal**, na pasta do projeto:
-
-```powershell
-# Windows (PowerShell) — use curl.exe, NÃO curl (ver Problemas comuns)
-curl.exe -X POST http://localhost:3000/classify -F "image=@samples/01_caneta.jpg"
-```
+### Passo 3 — Acompanhar o log (terminal 2)
 
 ```bash
-# Linux / macOS
-curl -X POST http://localhost:3000/classify -F "image=@samples/01_caneta.jpg"
+just tail-log       # sem just (Windows): Get-Content logs/inference.jsonl -Wait -Tail 3
+                    # sem just (Linux/macOS): tail -n 3 -f logs/inference.jsonl
 ```
 
-Resposta esperada (resumida):
+Na primeira execução o arquivo ainda não existe. Ele é criado no primeiro pedido; se o comando
+reclamar, rode o passo 4 e repita este.
 
-```json
-{"model":{"id":"microsoft/resnet-50","revision":"34c2154c194f829b11125337b98c8f5f9965ff19"},"inference_ms":74.1,"predictions":[{"label":"ballpoint, ballpoint pen, ballpen, Biro","score":1.0}, ...]}
-```
-
-### Alternativa visual: Swagger
-
-Com o serviço no ar, abra **http://localhost:3000** no navegador → `POST /classify` →
-**Try it out** → escolha uma imagem de `samples/` → **Execute**.
-
-### Variáveis de ambiente (opcional)
-
-Nenhuma é necessária. Para usar as opcionais, copie o modelo e preencha:
-
-```powershell
-Copy-Item .env.example .env     # Windows
-```
+### Passo 4 — Gerar carga com um comando (terminal 3)
 
 ```bash
-cp .env.example .env            # Linux / macOS
+just load           # sem just: uv run python scripts/generate_load.py
 ```
 
-O `.env` é carregado automaticamente pelas receitas do `just` e **nunca** é versionado.
+Envia **900 pedidos** (3 cenários × 300, cerca de 1,5 a 2 min em CPU). O terminal 2 mostra as linhas
+chegando em tempo real. Resultado esperado — idêntico em qualquer máquina, porque a carga usa
+semente fixa:
+
+```text
+[reference] concluído em ... s; respostas: {200: 294, 400: 6}
+[normal] concluído em ... s; respostas: {200: 287, 400: 13}
+[drift] concluído em ... s; respostas: {200: 292, 400: 8}
+```
+
+| Cenário | O que envia | Para quê |
+|---|---|---|
+| `reference` | Variações leves (recorte, espelhamento, rotação, brilho, contraste, saturação, resolução) das 8 imagens de `samples/` | Conjunto de referência para KS e PSI |
+| `normal` | A mesma distribuição, com outra semente | Controle: **não** deve acusar drift |
+| `drift` | As mesmas variações + escurecimento, desfoque, dessaturação e compressão forte | **Deve** acusar drift |
+
+Cerca de 3% dos pedidos são inválidos de propósito (arquivo que não é imagem ou `top_k` fora da faixa)
+para que o log também registre erros. Opções: `just load --scenario drift --n 100`.
+
+### Passo 5 — (Opcional) Analisar o log
+
+Abra [`notebooks/verificacao_log.ipynb`](notebooks/verificacao_log.ipynb) no VS Code, selecione o
+kernel do `.venv` e execute **Run All**. Ver seção 4.
 
 ---
 
-## 3. Contrato da API
+## 3. O log em arquivo
+
+### Onde fica e como é gravado
+
+| Item | Valor |
+|---|---|
+| Arquivo | `logs/inference.jsonl` (UTF-8), relativo à pasta onde o serviço foi iniciado |
+| Formato | **JSON Lines**: um objeto JSON completo por linha |
+| Granularidade | **Uma linha por pedido** a `POST /classify`, com sucesso **ou** erro (inclusive os `400` de validação) |
+| Data e hora | `ts` em ISO 8601 com microssegundos e fuso: `2026-11-17T23:07:52.337689-03:00` (instante em que o pedido terminou) |
+| Append-only | Novos eventos só acrescentam linhas; o arquivo nunca é reescrito (coberto por teste) |
+| Rotação | Ao passar de 10 MB, o arquivo vira `inference.jsonl.1` (os antigos sobem para `.2`, `.3`…) e um novo é criado; são mantidos 5 arquivos antigos. Cada linha tem ~0,7 KB, ou seja, ~14 mil pedidos por arquivo |
+| Arquivo `.__inference.jsonl.lock` | Trava usada pela rotação; vazio e normal |
+
+Configuração por variáveis de ambiente (opcionais; ver [`.env.example`](.env.example)):
+
+| Variável | Padrão | Significado |
+|---|---|---|
+| `INFERENCE_LOG_PATH` | `logs/inference.jsonl` | Caminho do arquivo |
+| `INFERENCE_LOG_MAX_BYTES` | `10485760` (10 MB) | Tamanho que dispara a rotação |
+| `INFERENCE_LOG_BACKUP_COUNT` | `5` | Quantos arquivos antigos guardar |
+
+### Exemplo de linha (real)
+
+```json
+{"ts":"2026-11-17T23:07:52.337689-03:00","event":"inference","schema_version":"1","request_id":"b5d6c40226474723a8af48f844ae0765","endpoint":"/classify","scenario":"normal","model_id":"microsoft/resnet-50","model_revision":"34c2154c194f829b11125337b98c8f5f9965ff19","top_k":5,"file_bytes":96772,"img_format":"JPEG","img_mode":"RGB","width":640,"height":480,"aspect_ratio":1.3333,"exif_rotated":false,"mean_L":115.4401,"std_L":41.3727,"mean_R":115.0459,"mean_G":116.6894,"mean_B":110.0711,"sharpness":2309.5229,"colorfulness":46.201,"status":"ok","http_status":200,"error_type":null,"top1_label":"sandbar, sand bar","top1_score":0.5707,"margin_top1_top2":0.2182,"entropy":1.2499,"features_ms":25.246,"inference_ms":164.9,"latency_ms":390.751}
+```
+
+### Dicionário de campos
+
+Toda linha tem **as mesmas chaves, na mesma ordem**; campos sem valor ficam `null` (ex.: características
+de uma imagem inválida). A justificativa de cada variável está em [`docs/crisp_dm.md`](docs/crisp_dm.md).
+
+| Grupo | Campo | Tipo | Descrição |
+|---|---|---|---|
+| Evento | `ts` | data/hora | ISO 8601, µs e fuso |
+| | `event` | texto | Tipo do evento (`inference`) |
+| | `schema_version` | texto | Versão do formato do log (`1`) |
+| | `request_id` | texto | UUID4 aleatório; também devolvido ao cliente no cabeçalho `X-Request-ID` |
+| | `endpoint` | texto | `/classify` |
+| | `scenario` | categórica | `reference`, `normal`, `drift` (cabeçalho `X-Scenario`) ou `unspecified` |
+| | `model_id`, `model_revision` | texto | Modelo e commit exato que respondeu |
+| Entrada | `top_k` | inteiro | Parâmetro do pedido |
+| | `file_bytes` | inteiro | Tamanho do arquivo enviado |
+| | `img_format`, `img_mode` | categórica | Formato (JPEG, PNG…) e modo de cor (RGB, L, RGBA…) |
+| | `exif_rotated` | booleano | A foto tinha rotação no EXIF |
+| | `width`, `height`, `aspect_ratio` | numérica | Geometria da imagem (já em pé) |
+| | `mean_L`, `std_L` | numérica | Brilho médio e contraste (luma BT.601, 0–255) |
+| | `mean_R`, `mean_G`, `mean_B` | numérica | Médias dos canais de cor (0–255) |
+| | `sharpness` | numérica | Nitidez: variância do Laplaciano |
+| | `colorfulness` | numérica | Colorido de Hasler e Süsstrunk (0 = cinza) |
+| Saída | `status`, `http_status`, `error_type` | categórica | `ok`/`error`, código HTTP e causa do erro (`invalid_image`, `validation_error`, `internal_error`, …) |
+| | `top1_label`, `top1_score` | categórica / numérica | Classe mais provável e sua confiança |
+| | `margin_top1_top2` | numérica | Diferença de confiança entre a 1ª e a 2ª classe |
+| | `entropy` | numérica | Incerteza do softmax nas 1000 classes (0 a ln 1000 ≈ 6,91) |
+| | `features_ms`, `inference_ms`, `latency_ms` | numérica | Tempo das características, do modelo e total do pedido no servidor |
+
+As características de pixel são calculadas sobre uma cópia reduzida a 512 px no maior lado, a mesma
+imagem (já girada pelo EXIF e em RGB) que o modelo recebe.
+
+### O que NÃO é gravado
+
+A imagem (bytes ou pixels), o nome original do arquivo, o IP e o User-Agent do cliente, a lista completa
+de classes e a mensagem/traceback dos erros. O cabeçalho `X-Scenario` só é aceito numa lista fechada de
+valores. A privacidade é coberta por teste (um arquivo chamado `foto_da_maria_silva.jpg` não deixa
+rastro no log).
+
+### Ler o log em Python
+
+```python
+import pandas as pd
+from pathlib import Path
+
+files = sorted(p for p in Path("logs").glob("inference.jsonl*") if not p.name.endswith(".lock"))
+df = pd.concat([pd.read_json(f, lines=True) for f in files], ignore_index=True)
+```
+
+---
+
+## 4. Verificação dos dados coletados
+
+O notebook [`notebooks/verificacao_log.ipynb`](notebooks/verificacao_log.ipynb) verifica os critérios de
+suficiência definidos no CRISP-DM sobre a carga do passo 4:
+
+| Critério | Resultado |
+|---|---|
+| Leitura direta pelo pandas, somando arquivos rotacionados | OK |
+| Campos nulos nas linhas de sucesso / erros sem causa / `request_id` repetidos | 0 / 0 / 0 |
+| Volume mínimo de 200 sucessos por cenário | 287 a 305 |
+| `reference` × `normal` (mesma distribuição) | PSI < 0,1 nas variáveis de dados: **sem alarme falso** |
+| `reference` × `drift` | PSI de 4 a 8 nas entradas de imagem; geometria (não alterada) estável: **sensível e específico** |
+| Efeito do drift no modelo | Mediana da confiança de ~0,8 para 0,25; da entropia de ~0,7 para 4,0 |
+
+Achado: `latency_ms` acusa diferença até entre cenários equivalentes, porque depende do estado da máquina
+(aquecimento, carga concorrente). Latência se monitora por limites absolutos e pelo `/metrics`, não por
+drift contra uma referência.
+
+---
+
+## 5. O `/metrics`
+
+`GET http://localhost:3000/metrics` expõe as métricas nativas do BentoML no formato Prometheus. O guia
+[`docs/metrics.md`](docs/metrics.md) e a planilha [`docs/metrics_analise.xlsx`](docs/metrics_analise.xlsx)
+mostram, com números reais, como:
+
+- calcular a **taxa de erros** (total e só de 5xx; acumulada e por intervalo) a partir de `bentoml_service_request_total`;
+- montar o **histograma** da latência subtraindo buckets cumulativos de `bentoml_service_request_duration_seconds`;
+- estimar o **boxplot** (quartis e percentis) por interpolação dentro dos buckets, o mesmo método do `histogram_quantile` do Prometheus;
+- saber **por quanto tempo os dados ficam**: desde a subida do servidor até o próximo reinício, quando são apagados. Não há janela de tempo nem histórico.
+
+Evidências: [`docs/evidencias/metrics_apos_carga.txt`](docs/evidencias/metrics_apos_carga.txt) e
+[`docs/evidencias/metrics_apos_reinicio.txt`](docs/evidencias/metrics_apos_reinicio.txt).
+
+---
+
+## 6. Contrato da API
 
 ### `POST /classify`
 
-**Entrada** — `multipart/form-data`:
+Entrada `multipart/form-data`:
 
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
-| `image` | arquivo | Sim | Imagem JPEG, PNG, WEBP ou BMP. Validada pelo **conteúdo**, não pela extensão |
-| `top_k` | inteiro | Não (padrão `5`) | Quantas classes devolver, de `1` a `10` |
+| `image` | arquivo | Sim | JPEG, PNG, WEBP ou BMP, validado pelo **conteúdo** |
+| `top_k` | inteiro | Não (padrão `5`) | Quantas classes devolver, de 1 a 10 |
 
-**Exemplo de chamada:**
+Cabeçalhos de monitoramento:
+
+| Cabeçalho | Direção | Uso |
+|---|---|---|
+| `X-Scenario` | pedido (opcional) | Marca o cenário no log: `reference`, `normal` ou `drift`; outro valor vira `unspecified` |
+| `X-Request-ID` | resposta | Id do pedido no log, para auditoria |
 
 ```powershell
-curl.exe -X POST http://localhost:3000/classify -F "image=@samples/02_mesa.jpg" -F "top_k=3"
+# Windows (PowerShell) — use curl.exe, NÃO curl
+curl.exe -X POST http://localhost:3000/classify -H "X-Scenario: normal" -F "image=@samples/06_praia.jpg" -F "top_k=3"
 ```
 
-**Saída** — `200 OK`, `application/json` (resposta real):
+Saída `200 OK` (real):
 
 ```json
-{
-  "model": {
-    "id": "microsoft/resnet-50",
-    "revision": "34c2154c194f829b11125337b98c8f5f9965ff19"
-  },
-  "inference_ms": 75.0,
-  "predictions": [
-    {"label": "mouse, computer mouse", "score": 0.5439},
-    {"label": "notebook, notebook computer", "score": 0.2388},
-    {"label": "laptop, laptop computer", "score": 0.1126}
-  ]
-}
+{"model":{"id":"microsoft/resnet-50","revision":"34c2154c194f829b11125337b98c8f5f9965ff19"},"inference_ms":164.9,"predictions":[{"label":"sandbar, sand bar","score":0.5707},{"label":"seashore, coast, seacoast, sea-coast","score":0.3525},{"label":"promontory, headland, head, foreland","score":0.0109}]}
 ```
 
-| Campo | Significado |
-|---|---|
-| `model.id` / `model.revision` | Modelo e commit exato que geraram a resposta (rastreabilidade) |
-| `inference_ms` | Tempo de pré-processamento + inferência no servidor |
-| `predictions` | Classes do ImageNet-1k, da mais para a menos provável |
-| `score` | Confiança do softmax (0 a 1). **Não é probabilidade de acerto** (ver seção 7) |
+Erros de entrada (arquivo que não é imagem, imagem ausente, `top_k` fora da faixa) devolvem `400` no
+formato `{"error", "detail"}`, com o campo inválido em `loc`, e também são registrados no log.
 
-### Erros
-
-Todo erro causado pela requisição devolve **`400 Bad Request`**, sempre no mesmo formato,
-apontando o campo inválido em `loc`:
-
-| Caso | `loc` | Mensagem (`msg`) |
-|---|---|---|
-| `top_k` fora de 1 a 10 | `["top_k"]` | `Input should be less than or equal to 10` |
-| Requisição sem imagem | `["image"]` | `Field required` |
-| Arquivo que não é imagem ou está corrompido | `["image"]` | `Value error, O arquivo enviado não é uma imagem válida...` |
-
-Exemplo (arquivo que não é imagem):
-
-```json
-{"error":"1 validation error for Input","detail":[{"type":"value_error","loc":["image"],"msg":"Value error, O arquivo enviado não é uma imagem válida ou está corrompido. Envie JPEG, PNG, WEBP ou BMP."}]}
-```
-
-### Endpoints automáticos do BentoML
+### Rotas automáticas do BentoML
 
 | Rota | Uso |
 |---|---|
 | `GET /` | Swagger (documentação interativa) |
-| `GET /readyz` | `200` quando o serviço está pronto (modelo carregado) |
-| `GET /docs.json` | Especificação OpenAPI |
+| `GET /metrics` | Métricas no formato Prometheus (seção 5) |
+| `GET /readyz` | `200` quando o modelo está carregado |
 
 ---
 
-## 4. Testes e demonstração
-
-### Comandos disponíveis (`justfile`)
+## 7. Comandos disponíveis
 
 | Comando | Sem `just` | O que faz |
 |---|---|---|
-| `just` | — | Lista todas as receitas |
+| `just` | — | Lista as receitas |
 | `just setup` | `uv sync --locked` | Instala o ambiente exato do `uv.lock` |
-| `just all` | `uv sync --locked && uv run pytest -v` | Comando único: instala e valida com predições reais |
+| `just all` | `uv sync --locked && uv run pytest -v` | Instala e roda os 34 testes |
+| `just test` | `uv run pytest -v` | Testes (serviço em memória; não precisa do servidor) |
 | `just serve` | `uv run bentoml serve service:ImageClassifier` | Sobe o serviço em `http://localhost:3000` |
-| `just test` | `uv run pytest -v` | 12 testes do serviço em memória (não precisa do servidor)|
-| `just demo` | `uv run python scripts/demo.py` | Envia as 5 amostras + 1 caso de erro ao serviço **rodando**  |
-| `just check-model` | `uv run python scripts/check_model.py` | Testa o modelo isolado, fora do BentoML (diagnóstico) |
+| `just load` | `uv run python scripts/generate_load.py` | Gera carga nos 3 cenários |
+| `just tail-log` | Windows: `Get-Content logs/inference.jsonl -Wait -Tail 3` · Linux/macOS: `tail -n 3 -f logs/inference.jsonl` | Acompanha o log em tempo real |
+| `just demo` | `uv run python scripts/demo.py` | Envia as amostras ao serviço rodando e resume as respostas |
+| `just check-model` | `uv run python scripts/check_model.py` | Testa o modelo isolado, fora do BentoML |
 
-Os testes verificam o **funcionamento do serviço** (códigos HTTP, contrato, valores-limite de `top_k`,
-erros), e não o acerto do modelo.
-
-**Evidências de execução:** respostas reais do serviço em [`docs/evidencias/`](docs/evidencias/)
-(5 casos `200` e 2 casos `400`), além de um print do Swagger (`swagger.jpg`).
-
-### Imagens de demonstração (`samples/`)
-
-Fotos próprias (sem pessoas e sem dados pessoais) e uma imagem sintética. Metadados EXIF — incluindo
-localização GPS — foram removidos por `scripts/prepare_samples.py`. Os originais não são versionados.
-
-| Arquivo | Top-1 | Score | Demonstra |
-|---|---|---|---|
-| `01_caneta.jpg` | ballpoint | 1.0000 | Caso de sucesso |
-| `02_mesa.jpg` | mouse | 0.5439 | Rótulo único numa cena com vários objetos |
-| `03_ceramica.jpg` | tray | 0.9800 | Classe inexistente → erro com alta confiança |
-| `04_trilobita.jpg` | trilobite | 1.0000 | Composição peculiar do ImageNet |
-| `05_ruido_sintetico.png` | hammerhead | 0.0254 | Sem opção "não sei": responde até para ruído |
+O `justfile` desliga a telemetria de uso do BentoML (`BENTOML_DO_NOT_TRACK=true`). Sem `just`, defina a
+variável antes de `bentoml serve` — PowerShell: `$env:BENTOML_DO_NOT_TRACK="true"`; Linux/macOS:
+`export BENTOML_DO_NOT_TRACK=true`.
 
 ---
 
-## 5. Estrutura do repositório
+## 8. Estrutura do repositório
 
 ```
-├── service.py                  # Serviço BentoML: contrato, validação e endpoint /classify
-├── justfile                    # Receitas: setup, serve, test, demo, all
-├── pyproject.toml              # Dependências declaradas (Python 3.11, torch CPU)
-├── uv.lock                     # Versões exatas de todas as dependências (reprodutibilidade)
-├── .python-version             # Python 3.11
-├── .env.example                # Variáveis de ambiente opcionais (só nomes, sem valores)
-├── samples/                    # 5 imagens de demonstração (sem EXIF)
+├── service.py                    # Serviço BentoML: /classify + ligação do monitoramento
+├── monitoring/
+│   ├── features.py               # Características de entrada (pixels, metadados) e de saída (confiança, margem, entropia)
+│   ├── logging_setup.py          # Logger JSON Lines: ISO 8601 µs + fuso, rotação segura no Windows
+│   └── middleware.py             # Middleware ASGI: uma linha de log por pedido, inclusive erros
 ├── scripts/
-│   ├── check_model.py          # Diagnóstico: modelo isolado, fora do BentoML
-│   ├── classify_images.py      # Classifica uma pasta de imagens (seleção das amostras)
-│   ├── prepare_samples.py      # Sanitiza fotos (EXIF/GPS) e gera a imagem sintética
-│   └── demo.py                 # Demonstração contra o serviço rodando
-├── tests/test_service.py       # 12 testes do serviço
-└── docs/
-    ├── evidencias/             # Respostas reais do serviço
-    └── problemas_e_ajustes.md  # Problemas encontrados, diagnóstico e decisões
+│   ├── generate_load.py          # Carga reproduzível: reference, normal, drift
+│   ├── demo.py                   # Demonstração contra o serviço rodando
+│   ├── check_model.py            # Diagnóstico do modelo isolado
+│   ├── classify_images.py        # Classifica uma pasta de imagens (herdado da base)
+│   └── prepare_samples.py        # Sanitiza fotos (EXIF/GPS) (herdado da base)
+├── tests/
+│   ├── conftest.py               # Um serviço em memória para todos os testes; log em pasta temporária
+│   ├── test_service.py           # Contrato da API e erros (15 testes)
+│   ├── test_features.py          # Testes de sanidade das características (10)
+│   └── test_logging.py           # Formato, privacidade, append-only e rotação do log (9)
+├── notebooks/verificacao_log.ipynb  # Verificação de suficiência: histogramas, boxplots, KS, PSI
+├── samples/                      # 8 imagens + CREDITS.md
+├── docs/
+│   ├── crisp_dm.md               # Análise CRISP-DM: variáveis e formato do log
+│   ├── metrics.md                # Guia de análise do /metrics
+│   ├── metrics_analise.xlsx      # Planilha: taxa de erro, histograma e boxplot da latência, retenção
+│   ├── problemas_e_ajustes.md    # Problemas encontrados, diagnóstico e decisões
+│   └── evidencias/               # Respostas e /metrics reais
+├── justfile                      # Receitas
+├── pyproject.toml / uv.lock      # Dependências declaradas e travadas (Python 3.11, torch CPU)
+└── .env.example                  # Variáveis opcionais (só nomes)
 ```
 
+`logs/` e `data/` são gerados em tempo de execução e não são versionados.
+
 ---
 
-## 6. O modelo
+## 9. Decisões de projeto e limitações
 
-| Item | Descrição |
+| Decisão | Motivo |
 |---|---|
-| **Modelo** | ResNet-50 — `microsoft/resnet-50` no Hugging Face Hub |
-| **Versão fixada** | commit `34c2154c194f829b11125337b98c8f5f9965ff19` (garante o mesmo modelo em qualquer máquina) |
-| **Arquitetura** | Rede convolucional residual de 50 camadas (He, Zhang, Ren e Sun — Microsoft Research, 2015, *Deep Residual Learning for Image Recognition*) |
-| **Treinamento** | Supervisionado no **ImageNet-1k**: ~1,28 milhão de imagens rotuladas em **1.000 classes**, resolução 224×224 |
-| **Para quê** | Classificação de imagens em classes fixas; amplamente usado como referência (*benchmark*) e como extrator de características |
-| **Licença** | Apache-2.0 (pesos baixados em tempo de execução; não são redistribuídos neste repositório) |
-| **Entrada** | Qualquer imagem → redimensionada e **recortada no centro** para 224×224, RGB, normalizada |
-| **Saída** | 1.000 valores → softmax → top-k classes |
-| **Desempenho local** | ~40 a 80 ms por imagem em CPU (Intel i7-12700H) |
+| JSON Lines | Append-only seguro, aceita novos campos, preserva tipos e é lido direto por pandas, Loki e Elasticsearch |
+| `concurrent-log-handler` em vez do `RotatingFileHandler` padrão | No Windows, renomear arquivo aberto por outro programa (ex.: `Get-Content -Wait`) falha; este handler adia a rotação sem perder eventos (teste automatizado) |
+| Logger configurado no `__init__` do serviço | O `bentoml serve` importa o módulo em dois processos; só o que atende pedidos deve abrir o arquivo |
+| Middleware ASGI + `contextvars` | Erros `400` de validação acontecem antes do método; o middleware registra todos os pedidos |
+| Características sobre cópia de 512 px | Custo baixo (~10 ms) e valores comparáveis entre resoluções |
+| Carga gerada em memória com semente fixa | Reproduzível em qualquer máquina e sem gravar derivados de imagens CC BY-SA |
+| Telemetria do BentoML desligada | Nada do serviço sai da máquina sem necessidade |
 
-**O que o serviço usa do modelo:** a função original completa — classificação nas 1.000 classes do
-ImageNet. Os ajustes feitos foram na **camada de serviço**: aplicação da rotação EXIF (fotos de celular),
-conversão para RGB (PNG com transparência, tons de cinza), validação da entrada e limitação do `top_k`.
+| Limitação | Consequência |
+|---|---|
+| Referência derivada de só 8 imagens | Pouca diversidade de conteúdo; não substitui o conjunto de treino |
+| `X-Scenario` vem do cliente | Só se justifica num ambiente de demonstração |
+| `top1_label` tem até 1000 categorias | Para o PSI, agrupar as mais frequentes e juntar o resto em "outras" |
+| `ts` é o fim do pedido | O início é `ts − latency_ms` |
+| Log interno do BentoML registra 4xx como `ERROR` com traceback | Ruído no console (limitação herdada; não afeta `logs/inference.jsonl`) |
 
----
-
-## 7. Limitações e propostas de melhoria
-
-Observadas com as imagens de `samples/` (ver [`docs/evidencias/`](docs/evidencias/)):
-
-| # | Limitação | Evidência | Proposta de melhoria |
-|---|---|---|---|
-| 1 | **Rótulo único**: uma cena com vários objetos vira uma só resposta | Mesa → `mouse` 54%; a caneca não aparece no top-3 | Modelo de **detecção** (DETR, YOLO), que devolve todos os objetos com suas posições |
-| 2 | **Classes fechadas**: só conhece 1.000 classes; o resto é forçado na mais parecida | Prato decorativo → `tray` (bandeja) | Modelo de **vocabulário aberto** (ex.: CLIP), que compara a imagem com rótulos em texto livre |
-| 3 | **Confiança não é acerto**: erra com confiança alta | Cerâmica → `tray` com **98%** | **Calibração** (ex.: *temperature scaling*) e não exibir o score como "certeza" |
-| 4 | **Sem opção "não sei"** | Ruído → `hammerhead` (2,5%) | **Limiar de confiança**: abaixo dele, responder "desconhecido". Resolve o ruído, mas **não** a cerâmica (98%) — ver #3 |
-| 5 | **Rótulos ambíguos** do ImageNet | `notebook` e `laptop` são classes distintas e dividem a probabilidade | Agrupar sinônimos no pós-processamento |
-| 6 | **Sensível a mudanças imperceptíveis** | Mesmo foto, só reduzida e recomprimida: `mouse` caiu de 69% para 54% | Testes de robustez; aumento de dados num eventual ajuste fino |
-| 7 | **Recorte central**: objetos nas bordas podem ser cortados | Pré-processamento 224×224 central | Preencher (*padding*) em vez de recortar |
-| 8 | **Composição do ImageNet**: tem "trilobita" e 120 raças de cães, mas não tem "pessoa" | Trilobita → 100% | Escolher o modelo pelo domínio do problema real |
-| 9 | **Apenas CPU, uma imagem por vez** | Decisão de projeto (reprodutibilidade) | Exportar para ONNX; usar o *adaptive batching* do BentoML; GPU opcional |
-
-Problemas de **engenharia** encontrados durante o desenvolvimento (e como foram resolvidos) estão em
-[`docs/problemas_e_ajustes.md`](docs/problemas_e_ajustes.md).
-
-## Onde ficam os arquivos baixados e como removê-los
-
-O modelo e os pacotes **não ficam na pasta do projeto**: são guardados em caches na pasta do
-usuário e reaproveitados nas execuções seguintes (e por outros projetos). Apagar a pasta do
-projeto remove o código e o `.venv`, mas **não** esses caches.
-
-| O quê | Onde fica | Tamanho aprox. | Como remover |
-|---|---|---|---|
-| Modelo ResNet-50 | `~/.cache/huggingface/hub/models--microsoft--resnet-50` | ~100 MB | Apagar a pasta |
-| Pacotes Python | Cache do uv (`uv cache dir` mostra o caminho) | ~1 GB | `uv cache clean` (afeta todos os projetos que usam o uv) |
-| Ambiente virtual | `.venv/` dentro do projeto | ~1 GB | Apagado junto com o projeto |
-
-No Windows, `~` corresponde a `C:\Users\<usuário>`. Remover o modelo:
-
-​```powershell
-Remove-Item -Recurse -Force "$env:USERPROFILE\.cache\huggingface\hub\models--microsoft--resnet-50"
-​```
+Os problemas reais encontrados no desenvolvimento estão em [`docs/problemas_e_ajustes.md`](docs/problemas_e_ajustes.md).
 
 ---
 
-## 8. Problemas comuns
+## 10. Problemas comuns
 
 | Sintoma | Causa | Solução |
 |---|---|---|
-| `curl` no PowerShell dá erro de parâmetro | No PowerShell 5, `curl` é apelido de `Invoke-WebRequest` | Usar **`curl.exe`** |
-| `uv` ou `just` "not recognized" | PATH não atualizado após a instalação | Fechar e reabrir o terminal / VS Code |
-| `just demo` diz "Serviço indisponível" | O servidor não está rodando | `just serve` em outro terminal |
-| Porta 3000 ocupada | Outro processo usa a porta | `uv run bentoml serve service:ImageClassifier --port 3001` |
-| Primeira execução lenta | Download do modelo (~100 MB) | Só na primeira vez; depois vem do cache |
-| Aviso sobre *symlinks* do Hugging Face | Windows sem "Developer Mode" | Inofensivo; para silenciar, `HF_HUB_DISABLE_SYMLINKS_WARNING=1` no `.env` |
-| Aviso de requisições sem `HF_TOKEN` | Download anônimo | Inofensivo; opcionalmente definir `HF_TOKEN` no `.env` |
+| `curl` no PowerShell dá erro de parâmetro | `curl` é apelido de `Invoke-WebRequest` | Usar **`curl.exe`** |
+| `uv` ou `just` "not recognized" | PATH não atualizado | Fechar e reabrir o terminal / VS Code |
+| `just load` diz "Serviço indisponível" | Servidor não está rodando | `just serve` em outro terminal |
+| `just tail-log` diz que o arquivo não existe | Nenhum pedido feito ainda | Rodar `just load` e repetir |
+| Porta 3000 ocupada | Outro processo usa a porta | `uv run bentoml serve service:ImageClassifier --port 3001` e `just load --url http://localhost:3001` |
+| Mensagem `rename failed. File in use?` | O log estava aberto por outro programa na hora da rotação | Inofensivo: a rotação é adiada e nenhum evento se perde |
+| Não consigo apagar o `.venv` (arquivo em uso) | Um Python do projeto continua rodando (ex.: kernel do notebook) | Fechar o notebook e os terminais; ou encerrar os processos do `.venv` (ver `docs/problemas_e_ajustes.md`) |
+| Primeira execução lenta | Download do modelo (~100 MB) | Só na primeira vez |
+
+O modelo fica em cache em `~/.cache/huggingface/hub/models--microsoft--resnet-50` (~100 MB) e os pacotes
+no cache do `uv` (`uv cache dir`). Apagar a pasta do projeto não remove esses caches.
 
 ---
 
-## 9. Uso de IA
+## 11. Créditos
+
+- **Serviço base:** [servico-classificacao-imagens-bentoml](https://github.com/phelipecscosta/servico-classificacao-imagens-bentoml) (mesmo autor).
+- **Características de imagem:** adaptadas de [mlops-bloco2-atividade1-processamento-imagens](https://github.com/phelipecscosta/mlops-bloco2-atividade1-processamento-imagens) (mesmo autor), que segue o repositório de referência [lgallindo/bentoML-processamento-imagens](https://github.com/lgallindo/bentoML-processamento-imagens).
+- **Imagens:** fotos próprias e imagens do Wikimedia Commons sob CC BY-SA 4.0, CC0 1.0 e CC BY 2.0; autores e links em [`samples/CREDITS.md`](samples/CREDITS.md).
+- **Modelo:** ResNet-50 (`microsoft/resnet-50`, Apache-2.0), baixado em tempo de execução e não redistribuído.
+
+---
+
+## 12. Uso de IA
 
 **Ferramenta:** Claude (Anthropic), modelo Claude Opus 5.5, via claude.ai.
 
-**O que foi pedido:** orientação técnica e didática, etapa por etapa, para construir o serviço:
-estrutura do projeto e boas práticas de MLOps; escolha do modelo; configuração do `uv` (versões fixadas,
-PyTorch CPU); código do serviço BentoML, do contrato Pydantic, dos testes, dos scripts e do `justfile`;
-interpretação de saídas e erros; e rascunho deste README.
+**O que foi pedido:** orientação técnica e didática, etapa por etapa: análise CRISP-DM; escolha das
+variáveis e do formato do log; código do módulo de características, do logger, do middleware, dos
+testes, do gerador de carga e do notebook; a planilha e o guia do `/metrics`; e o rascunho deste README.
 
 **Avaliação crítica:**
 
-*Onde ajudou.* A ferramenta foi mais útil em boas práticas que eu não conhecia ou não teria
-priorizado: fixar o ambiente com `uv.lock`, forçar o PyTorch CPU por índice explícito (evitando
-~2,5 GB de CUDA em Linux), fixar o `revision` do modelo, remover o EXIF/GPS das fotos antes de
-publicá-las e testar o serviço em memória com `to_asgi()`. Também antecipou armadilhas do Windows
-que me custariam tempo (`curl` como apelido de `Invoke-WebRequest`, arquivos UTF-16 gerados pelo
-PowerShell, o aviso de `LF`/`CRLF`).
+*Onde ajudou.* [Completar com a sua avaliação. Fatos desta etapa que podem servir de base: a ferramenta
+testou as soluções num ambiente próprio antes de propô-las (com o BentoML 1.4.39 e um modelo falso) e
+encontrou ali problemas que não eram óbvios — o import do serviço em dois processos, a duplicação de
+métricas com dois `TestClient`, a telemetria do BentoML conectando a `t.bentoml.com`; também indicou o
+risco da rotação no Windows antes de ele acontecer.]
 
-*Onde errou ou precisou de correção.* Várias previsões não se confirmaram e só foram detectadas
-porque executei e conferi cada passo:
-- previu 13 testes; o pytest coletou 12 (erro de contagem);
-- previu confiança alta para a imagem de ruído; o resultado real foi 2,5% — o que, na verdade,
-  enriqueceu a análise (um limiar de confiança detecta o ruído, mas não a cerâmica com 98%);
-- estimou de 3 a 6 minutos de instalação; o teste em clone limpo mediu até ~10 minutos;
-- sugeriu apagar uma pasta "Scrips" antes de saber onde ela estava — era a `Scripts` do `.venv`,
-  essencial ao ambiente; a localização foi verificada por mim antes de qualquer remoção;
-- incluiu um passo desnecessário (criar o venv com `uv venv` antes do `uv add`, que já o cria) e
-  um erro de digitação no README ("cinga").
+*Onde errou ou precisou de correção.* [Completar. Fatos: ao recriar o `.venv`, a instrução não previu
+que o kernel do notebook mantinha arquivos abertos; o `Remove-Item` apagou a pasta pela metade e foi
+preciso diagnosticar pela mensagem de erro e encerrar os processos do `.venv`. As previsões de
+resultado do modelo real (confiança e entropia com drift) eram incertas e só foram confirmadas ao
+executar.]
 
-*Onde precisei redirecionar.* Em dois momentos a ferramenta desviou do foco do projeto, que é a
-camada de serviço: aprofundou a análise de acerto do modelo além do necessário e propôs investigar
-um atraso de ~200 ms de conexão em `localhost`. Nos dois casos interrompi e voltei ao escopo.
+*O que verifiquei por conta própria.* [Completar. Ex.: cada bloco foi executado e a saída conferida;
+a carga reproduziu as mesmas contagens em duas máquinas; os 34 testes passaram no Windows, incluindo
+a rotação com o arquivo aberto; a retenção do `/metrics` foi comprovada reiniciando o servidor.]
 
-*O que verifiquei por conta própria.* Não aceitei código ou explicação sem executar: cada bloco foi
-rodado e a saída conferida; o defeito do erro 500 (arquivo que não é imagem) foi encontrado por
-teste deliberado e confirmado pelo traceback; os resultados foram comparados entre quatro clientes
-diferentes (script, `curl`, Swagger e `demo.py`); e o README foi validado num clone limpo, com
-caches vazios e sem o meu Python instalado.
+*O que aprendi.* [Completar.]
 
-*O que aprendi.* As etapas fundamentais para se colocar um modelo em serviço através do BentoML, podendo a quebrar em blocos, seus respectivos objetivos e potenciais problemas, como realizar testes e validações.
+> Este texto foi rascunhado pela própria ferramenta a partir do histórico da conversa e revisado e
+> editado por mim.
 
-*Conclusão.* O uso de ferramentas de IA potencializa as suas intenções e é uma ferramenta poderosa de aprendizado através do exemplo e exposição de diversos cenários possíveis e respostas personalizadas a perguntas específicas ou amplas.
-
-> Este texto de avaliação foi rascunhado pela própria ferramenta a partir do histórico da conversa
-> e revisado e editado por mim.
 ---
 
-## 10. Licença
+## 13. Licença
 
 Código sob licença **MIT** (ver [`LICENSE`](LICENSE)).
 O modelo ResNet-50 (`microsoft/resnet-50`) é distribuído pela Microsoft sob licença **Apache-2.0**.

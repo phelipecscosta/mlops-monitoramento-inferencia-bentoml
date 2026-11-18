@@ -1,7 +1,7 @@
 [project]
-name = "servico-classificacao-imagens-bentoml"
+name = "mlops-monitoramento-inferencia-bentoml"
 version = "0.1.0"
-description = "Serviço de classificação de imagens (ResNet-50) com BentoML"
+description = "Monitoramento de um serviço de inferência (ResNet-50 + BentoML): log JSON Lines de entradas e saídas e análise do /metrics"
 readme = "README.md"
 license = "MIT"
 # Só a família 3.11: é a única versão testada (lock mais simples e honesto)

@@ -19,6 +19,7 @@ e a decisão tomada. Ordem cronológica.
 | 12 | O `bentoml serve` importa o `service.py` em dois processos (supervisor e worker) | Diagnóstico com `os.getpid()`: import em 2 PIDs, `__init__` do serviço só no worker | Log configurado dentro do `__init__`, nunca no topo do módulo: só o processo que atende pedidos abre o arquivo |
 | 13 | Erros 400 de validação não chegam ao método `classify`, então não seriam registrados | A validação do Pydantic ocorre antes da chamada do método | Middleware ASGI grava uma linha por pedido, inclusive erros; um `contextvars` leva as características do método até o middleware |
 | 14 | Dois `TestClient` do serviço no mesmo processo de testes quebram com `DuplicateTimeseries` | As métricas do Prometheus são globais por processo | Fixture única `client` com `scope="session"` em `tests/conftest.py` |
+| 15 | `Remove-Item .venv` apagou a pasta pela metade (`No pyvenv.cfg file`) | Mensagem de erro: `python.exe` e fontes do matplotlib "being used by another process"; o kernel do notebook continuava vivo após fechar o notebook | Encerrar só os processos do `.venv` do projeto: `Get-Process python* \| Where-Object { $_.Path -like "$PWD\.venv\*" } \| Stop-Process -Force`; depois apagar e `uv sync --locked` |
 
 ## Limitações observadas (não corrigidas, por decisão)
 
